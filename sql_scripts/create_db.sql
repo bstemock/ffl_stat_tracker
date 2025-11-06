@@ -48,12 +48,52 @@ delimiter |
 
 create procedure get_weekly_scoreboard(in input_year int, input_week int)
 begin
-	select g.*, a.team_name away_team_name, a.division away_division, h.team_name home_team_name, h.division home_division
+	select g.*, a.team_name away_team_name, a.division away_division, h.team_name home_team_name, h.division home_division,
+    (select
+		concat(
+			sum(case
+			   when away_owner = a.owner and winner = "Away" and week < 15 then 1
+			   when home_owner = a.owner and winner = "Home" and week < 15 then 1
+			   else 0
+			   end), "-",
+			sum(case
+			   when away_owner = a.owner and winner = "Home" and week < 15 then 1
+			   when home_owner = a.owner and winner = "Away" and week < 15 then 1
+			   else 0
+			   end), "-",
+			sum(case
+			   when away_owner = a.owner and winner = "Tie" and week < 15 then 1
+			   when home_owner = a.owner and winner = "Tie" and week < 15 then 1
+			   else 0
+			   end)
+        )
+	 from games gg
+	 where gg.year = g.year and (gg.away_owner = a.owner or gg.home_owner = a.owner)
+    ) as away_record,
+    (select
+		concat(
+			sum(case
+			   when away_owner = h.owner and winner = "Away" and week < 15 then 1
+			   when home_owner = h.owner and winner = "Home" and week < 15 then 1
+			   else 0
+			   end), "-",
+			sum(case
+			   when away_owner = h.owner and winner = "Home" and week < 15 then 1
+			   when home_owner = h.owner and winner = "Away" and week < 15 then 1
+			   else 0
+			   end), "-",
+			sum(case
+			   when away_owner = h.owner and winner = "Tie" and week < 15 then 1
+			   when home_owner = h.owner and winner = "Tie" and week < 15 then 1
+			   else 0
+			   end)
+        )
+	 from games gg
+	 where gg.year = g.year and (gg.away_owner = h.owner or gg.home_owner = h.owner)
+    ) as home_record
     from games g
-    join teams a
-    on a.owner = g.away_owner and a.year = g.year
-    join teams h
-    on h.owner = g.home_owner and h.year = g.year
+    join teams a on a.owner = g.away_owner and a.year = g.year
+    join teams h on h.owner = g.home_owner and h.year = g.year
     where g.year = input_year and g.week = input_week;
 end |
 

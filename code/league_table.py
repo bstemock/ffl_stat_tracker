@@ -1,5 +1,6 @@
 # TO DO
-# 1: widen points columns?
+# 1: add column for point projection differential(s)
+# 2: refresh button
 
 import os
 import sys
