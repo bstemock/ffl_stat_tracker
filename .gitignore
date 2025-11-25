@@ -1,3 +1,5 @@
 pyqt_tutorial/
+code/__init__.py
 code/__pycache__/
 sql_scripts/insert2025.sql
+sql_scripts/test_scripts.sql
