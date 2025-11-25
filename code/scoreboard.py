@@ -1,7 +1,7 @@
 # TO DO
-# 1: add team records
+# 1: implement playoff view/edit layouts
 # 2: update league table on saving changes
-# 3: implement playoff view/edit layouts
+# 3: update list of weeks to include "Playoffs" and update relevant buttons/functions
 # 4: see about background gray bars behind second and fourth row
 
 import os
@@ -9,8 +9,8 @@ import sys
 import pandas as pd
 from mysql import connector
 
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtWidgets import (
     QComboBox,
     QDialog,
@@ -28,6 +28,7 @@ from PyQt5.QtWidgets import (
 )
 
 titleFont = QFont("Ubuntu", 14)
+lineFont = QFont("Ubuntu", 20)
 headerFont = QFont("Ubuntu", 12, QFont.Bold)
 boldFont = QFont("Ubuntu", 11, QFont.Bold)
 sidenoteFont = QFont("Ubuntu", 8)
@@ -43,17 +44,6 @@ def get_scores(cursor, year, week):
         sys.exit("ERROR: No results returned by get_weekly_scoreboard process.")
     scores = pd.DataFrame(results, columns=field_names)
     return scores
-#
-#
-# def get_years(cursor):
-#     sql = """select distinct(year) from games order by year desc"""
-#     try:
-#         cursor.execute(sql)
-#     except connector.Error as error:
-#         sys.exit("SQL Error in get_years():\n" + error)
-#     results = list(map(list, cursor.fetchall()))
-#     results = [i[0] for i in results]
-#     return results
 
 
 def get_weeks(cursor, year):
@@ -72,18 +62,30 @@ class WeeklyScoreboard(QStackedWidget):
         super().__init__()
         self.db, self.cursor, self.current_year, self.current_week = db, cursor, current_year, current_week
         self.years_list = years_list
-        self.scoreboard_columns = ["away_team_name", "away_owner", "away_proj", "away_score", "",
-                                   "home_score", "home_proj", "home_owner", "home_team_name"]
-        self.column_widths = [180, 100, 60, 50, 30, 50, 60, 100, 180]
-        self.setWindowTitle("Weekly Scoreboard")
-        self.resize(850, 325)
-        self.setMinimumSize(850, 325)
+        self.scoreboard_columns = [["away_team_name", "away_score", "", "home_score", "home_team_name"],
+                                   [["away_owner", "away_record"], "away_proj", "",
+                                    "home_proj", ["home_record", "home_owner"]]]
+        self.column_widths = [225, 60, 10, 60, 225]
 
         self.stack1 = QWidget()
         self.stack2 = QWidget()
 
-        layout1 = self.ViewRegularLayout(current_year, current_week)
-        layout2 = self.EditRegularLayout(current_year, current_week)
+        if current_week < 16:
+            layout1 = self.ViewRegularLayout(current_year, current_week)
+            layout2 = self.EditRegularLayout(current_year, current_week)
+            self.setWindowTitle("Weekly Scoreboard")
+            self.minsize = QSize(sum(self.column_widths) + 30, 400)
+            self.resize(self.minsize)
+            self.setMinimumSize(self.minsize)
+        elif 15 < current_week < 18:
+            layout1 = self.ViewRegularLayout(current_year, current_week)
+            layout2 = self.EditRegularLayout(current_year, current_week)
+            self.setWindowTitle("Playoff Bracket")
+            self.minsize = QSize(sum(self.column_widths) + 30, 400)
+            self.resize(self.minsize)
+            self.setMinimumSize(self.minsize)
+        else:
+            sys.exit("ERROR: current_week exceeds 17")
 
         self.stack1.setLayout(layout1)
         self.stack2.setLayout(layout2)
@@ -110,66 +112,83 @@ class WeeklyScoreboard(QStackedWidget):
 
         label = QLabel("Away")
         label.setFont(headerFont)
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
         label.setStyleSheet("padding-left: 2px;")
-        score_layout.addWidget(label, 0, 0)
+        score_layout.addWidget(label, 0, 0, 2, 1)
+
+        label = QLabel("Score")
+        label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        label.setFixedSize(self.column_widths[1], 30)
+        score_layout.addWidget(label, 0, 1)
 
         label = QLabel("(Projected)")
         label.setFont(sidenoteFont)
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 2)
+        label.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        label.setFixedSize(self.column_widths[1], 20)
+        score_layout.addWidget(label, 1, 1)
 
         label = QLabel("Score")
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        label.setFixedSize(self.column_widths[3], 30)
         score_layout.addWidget(label, 0, 3)
 
-        label = QLabel("|")
-        label.setAlignment(Qt.AlignCenter)
-        score_layout.addWidget(label, 0, 4)
-
-        label = QLabel("Score")
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 5)
-
         label = QLabel("(Projected)")
         label.setFont(sidenoteFont)
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 6)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        label.setFixedSize(self.column_widths[3], 20)
+        score_layout.addWidget(label, 1, 3)
 
         label = QLabel("Home")
         label.setFont(headerFont)
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
         label.setStyleSheet("padding-right: 2px;")
-        score_layout.addWidget(label, 0, 8)
+        score_layout.addWidget(label, 0, 4, 2, 1)
 
         for i, row in scores.iterrows():
-            for j, col in enumerate(self.scoreboard_columns):
-                if j == 4:
-                    label = QLabel("|")
-                    label.setAlignment(Qt.AlignCenter)
+            r1, r2 = 2 * i + 2, 2 * i + 3
+            for j in range(len(self.scoreboard_columns[0])):
+                col1, col2 = self.scoreboard_columns[0][j], self.scoreboard_columns[1][j]
+                align = Qt.AlignCenter
+                if j == 2:
+                    label1 = QLabel("")
                 else:
-                    label = QLabel(str(row[col]))
+                    label1 = QLabel(str(row[col1]))
+                if j != 2:
+                    label1.setFixedSize(self.column_widths[j], 30)
 
-                label.setFixedSize(self.column_widths[j], 35)
+                if j in [0, 4]:
+                    label2 = QLabel("%s | (%s)" % (row[col2][0], row[col2][1]))
+                elif j == 2:
+                    label2 = QLabel("")
+                else:
+                    label2 = QLabel("(%s)" % row[col2])
+                label2.setFont(sidenoteFont)
+                label2.setFixedSize(self.column_widths[j], 20)
 
-                if j in [1, 2, 6, 7]:
-                    label.setText("(%s)" % row[col])
-                    label.setFont(sidenoteFont)
-                if j in [0, 1, 5, 6]:
-                    label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-                elif j in [2, 3, 7, 8]:
-                    label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                if i % 2 == 1:
-                    label.setStyleSheet("background-color: gainsboro")
-                if j < 4 and row["winner"] == "Away":
-                    label.setStyleSheet(label.styleSheet() + "; font-weight: bold")
-                elif j > 4 and row["winner"] == "Home":
-                    label.setStyleSheet(label.styleSheet() + "; font-weight: bold")
+                if j in [0, 3]:
+                    align = Qt.AlignLeft
+                elif j in [1, 4]:
+                    align = Qt.AlignRight
+                if i % 2 == 0:
+                    label1.setStyleSheet(label1.styleSheet() + "; background-color: gainsboro")
+                    label2.setStyleSheet(label2.styleSheet() + "; background-color: gainsboro")
+                if j < 2 and row["winner"] == "Away":
+                    label1.setStyleSheet(label1.styleSheet() + "; font-weight: bold")
+                    label2.setStyleSheet(label2.styleSheet() + "; font-weight: bold")
+                elif j > 2 and row["winner"] == "Home":
+                    label1.setStyleSheet(label1.styleSheet() + "; font-weight: bold")
+                    label2.setStyleSheet(label2.styleSheet() + "; font-weight: bold")
                 if j == 0:
-                    label.setStyleSheet(label.styleSheet() + "; padding-left: 2px")
-                elif j == 8:
-                    label.setStyleSheet(label.styleSheet() + "; padding-right: 2px")
-                score_layout.addWidget(label, i + 1, j)
+                    label1.setStyleSheet(label1.styleSheet() + "; padding-left: 2px")
+                    label2.setStyleSheet(label2.styleSheet() + "; padding-left: 2px")
+                elif j == 4:
+                    label1.setStyleSheet(label1.styleSheet() + "; padding-right: 2px")
+                    label2.setStyleSheet(label2.styleSheet() + "; padding-right: 2px")
+                label1.setAlignment(align | Qt.AlignBottom)
+                label2.setAlignment(align | Qt.AlignTop)
+
+                score_layout.addWidget(label1, r1, j)
+                score_layout.addWidget(label2, r2, j)
 
         layout.addLayout(score_layout, stretch=len(scores) + 1)
 
@@ -178,7 +197,7 @@ class WeeklyScoreboard(QStackedWidget):
 
         button1 = QPushButton("Edit Scores")
         button1.setFixedWidth(120)
-        button1.clicked.connect(self.toggle_layout)
+        button1.clicked.connect(self.toEdit)
         options_layout.addWidget(button1)
 
         label1 = QLabel("Year:")
@@ -231,72 +250,90 @@ class WeeklyScoreboard(QStackedWidget):
 
         label = QLabel("Away")
         label.setFont(headerFont)
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 0)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        label.setStyleSheet("padding-left: 2px;")
+        score_layout.addWidget(label, 0, 0, 2, 1)
+
+        label = QLabel("Score")
+        label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        label.setFixedSize(self.column_widths[1], 30)
+        score_layout.addWidget(label, 0, 1)
 
         label = QLabel("(Projected)")
         label.setFont(sidenoteFont)
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 2)
+        label.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        label.setFixedSize(self.column_widths[1], 20)
+        score_layout.addWidget(label, 1, 1)
 
         label = QLabel("Score")
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        label.setFixedSize(self.column_widths[3], 30)
         score_layout.addWidget(label, 0, 3)
 
-        label = QLabel("|")
-        label.setAlignment(Qt.AlignCenter)
-        score_layout.addWidget(label, 0, 4)
-
-        label = QLabel("Score")
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 5)
-
         label = QLabel("(Projected)")
         label.setFont(sidenoteFont)
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 6)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        label.setFixedSize(self.column_widths[3], 20)
+        score_layout.addWidget(label, 1, 3)
 
         label = QLabel("Home")
         label.setFont(headerFont)
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        score_layout.addWidget(label, 0, 8)
+        label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        label.setStyleSheet("padding-right: 2px;")
+        score_layout.addWidget(label, 0, 4, 2, 1)
 
         for i, row in scores.iterrows():
-            for j, col in enumerate(self.scoreboard_columns):
-                if j == 4:
-                    widget = QLabel("|")
-                    widget.setAlignment(Qt.AlignCenter)
-                elif j in [3, 5]:
-                    widget = LineEdit_scores[i][int((j - 3) / 2)]
-                    if isinstance(row[col], str):
-                        widget.setPlaceholderText(str(row[col]))
+            r1, r2 = 2 * i + 2, 2 * i + 3
+            for j in range(len(self.scoreboard_columns[0])):
+                col1, col2 = self.scoreboard_columns[0][j], self.scoreboard_columns[1][j]
+                align = Qt.AlignCenter
+                if j == 2:
+                    widget1 = QLabel("")
+                elif j in [1, 3]:
+                    widget1 = LineEdit_scores[i][int((j - 1) / 2)]
+                    if isinstance(row[col1], str):
+                        widget1.setPlaceholderText(str(row[col1]))
                     else:
-                        widget.setText(str(row[col]))
-                elif j in [2, 6]:
-                    widget = LineEdit_projs[i][int((j - 2) / 4)]
-                    if isinstance(row[col], str):
-                        widget.setPlaceholderText(str(row[col]))
-                    else:
-                        widget.setText(str(row[col]))
+                        widget1.setText(str(row[col1]))
                 else:
-                    widget = QLabel(str(row[col]))
+                    widget1 = QLabel(str(row[col1]))
+                if j != 2:
+                    widget1.setFixedSize(self.column_widths[j], 30)
 
-                widget.setFixedSize(self.column_widths[j], 35)
+                if j in [0, 4]:
+                    widget2 = QLabel("%s | (%s)" % (row[col2][0], row[col2][1]))
+                    widget2.setFont(sidenoteFont)
+                elif j in [1, 3]:
+                    widget2 = LineEdit_projs[i][int((j - 1) / 2)]
+                    if isinstance(row[col1], str):
+                        widget2.setPlaceholderText(str(row[col2]))
+                    else:
+                        widget2.setText(str(row[col2]))
+                elif j == 2:
+                    widget2 = QLabel("")
+                else:
+                    widget2 = QLabel("(%s)" % row[col2])
+                widget2.setFixedSize(self.column_widths[j], 20)
 
-                if j in [1, 7]:
-                    widget.setText("(%s)" % row[col])
-                    widget.setFont(sidenoteFont)
-                if j in [0, 1, 5, 6]:
-                    widget.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-                elif j in [2, 3, 7, 8]:
-                    widget.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                if i % 2 == 1:
-                    widget.setStyleSheet("background-color: gainsboro")
+                if j in [0, 3]:
+                    align = Qt.AlignLeft
+                elif j in [1, 4]:
+                    align = Qt.AlignRight
+                if i % 2 == 0:
+                    widget1.setStyleSheet(widget1.styleSheet() + "; background-color: gainsboro")
+                    widget2.setStyleSheet(widget2.styleSheet() + "; background-color: gainsboro")
                 if j == 0:
-                    label.setStyleSheet(label.styleSheet() + "; padding-left: 2px")
-                elif j == 8:
-                    label.setStyleSheet(label.styleSheet() + "; padding-right: 2px")
-                score_layout.addWidget(widget, i + 1, j)
+                    widget1.setStyleSheet(widget1.styleSheet() + "; padding-left: 2px")
+                    widget2.setStyleSheet(widget2.styleSheet() + "; padding-left: 2px")
+                elif j == 4:
+                    widget1.setStyleSheet(widget1.styleSheet() + "; padding-right: 2px")
+                    widget2.setStyleSheet(widget2.styleSheet() + "; padding-right: 2px")
+                if j != 2:
+                    widget1.setAlignment(align | Qt.AlignBottom)
+                    widget2.setAlignment(align | Qt.AlignTop)
+
+                score_layout.addWidget(widget1, r1, j)
+                score_layout.addWidget(widget2, r2, j)
 
         layout.addLayout(score_layout, stretch=len(scores) + 1)
 
@@ -319,13 +356,31 @@ class WeeklyScoreboard(QStackedWidget):
 
         return layout
 
-    def toggle_layout(self):
+    def ViewPlayoffLayout(self, year):
+        semis = get_scores(self.cursor, year, 16)
+        finals = get_scores(self.cursor, year, 17)
+        layout = 0
+        return layout
+
+    def EditPlayoffLayout(self, year):
+        semis = get_scores(self.cursor, year, 16)
+        finals = get_scores(self.cursor, year, 17)
+        layout = 0
+        return layout
+
+    def toEdit(self):
         self.setCurrentIndex(1)
         return
 
     def change_weeks(self, year, week):
-        layout1 = self.ViewRegularLayout(year, week)
-        layout2 = self.EditRegularLayout(year, week)
+        if week < 16:
+            layout1 = self.ViewRegularLayout(year, week)
+            layout2 = self.EditRegularLayout(year, week)
+        elif 15 < week < 18:
+            layout1 = self.ViewRegularLayout(year, week)
+            layout2 = self.EditRegularLayout(year, week)
+        else:
+            sys.exit("ERROR: week exceeds 17 in change_weeks() function")
 
         temp_widget1, temp_widget2 = QWidget(), QWidget()
         temp_widget1.setLayout(self.stack1.layout())
@@ -393,7 +448,7 @@ class WeeklyScoreboard(QStackedWidget):
 
     def closeEvent(self, event):
         self.setCurrentIndex(0)
-        self.resize(850, 325)
+        self.resize(self.minsize)
         return
 
 
