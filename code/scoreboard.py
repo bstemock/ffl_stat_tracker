@@ -1,6 +1,6 @@
 # TO DO
 # 1: implement playoff view/edit layouts
-# 2: update league table on saving changes
+# 2: update other windows on saving changes
 # 3: update list of weeks to include "Playoffs" and update relevant buttons/functions
 # 4: see about background gray bars behind second and fourth row
 
@@ -40,9 +40,10 @@ def get_scores(cursor, year, week):
     if proc_results:
         results = proc_results.fetchall()
         field_names = proc_results.column_names
+        scores = pd.DataFrame(results, columns=field_names)
     else:
-        sys.exit("ERROR: No results returned by get_weekly_scoreboard process.")
-    scores = pd.DataFrame(results, columns=field_names)
+        field_names = proc_results.column_names
+        scores = pd.DataFrame(columns=field_names)
     return scores
 
 

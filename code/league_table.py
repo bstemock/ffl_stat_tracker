@@ -4,6 +4,7 @@
 
 import os
 import sys
+import numpy as np
 import pandas as pd
 from mysql import connector
 from scipy.stats import rankdata
@@ -55,7 +56,7 @@ def get_head_to_head_records(cursor, year, owner, opp_list):
             sys.exit("ERROR: No results returned by get_head_to_head process.")
         head2head = pd.concat([head2head, pd.DataFrame(results, columns=["wins", "losses", "ties",
                                                                          "remaining_games"])], ignore_index=True)
-    return head2head.to_numpy().astype(float)
+    return head2head.to_numpy().astype(int)
 
 
 class LeagueTable(QWidget):
@@ -99,93 +100,85 @@ class LeagueTable(QWidget):
 
         east = table.loc[table["division"] == "East"].copy()
         west = table.loc[table["division"] == "West"].copy()
-        wc = table.loc[(table["owner"] != east["owner"].iloc[0]) & (table["owner"] != west["owner"].iloc[0])].copy()
-        games_played = table["wins"].iloc[0] - table["losses"].iloc[0] - table["ties"].iloc[0]
-        games_remaining = 14 - games_played
+        games_played = table["wins"].iloc[0] + table["losses"].iloc[0] + table["ties"].iloc[0]
+        games_remaining = 15 - games_played
 
-        for t in [wc, east, west]:
+        for t in [east, west]:
             t.reset_index(drop=True, inplace=True)
-            if len(t) > 5:
-                t["GB"] = t["wins"].iloc[1] - t["wins"].astype("int")
-                # t["GB"] = t["GB"].apply(lambda x: "+%s" % abs(x) if x < 0 else x)
-            else:
-                t["GB"] = t["wins"].iloc[0] - t["wins"].astype("int")
+            t["GB"] = t["wins"].iloc[0] - t["wins"].astype("int")
             t["RANK"] = len(t) - rankdata(t["win_pct"], method="max") + 1
-            # t["GB"].replace({0: "-"}, inplace=True)
             t["clinch"] = ""
+            t = self.h2h_reorder(t, year)
 
-            # handle head-to-head tie-breakers
-            ranks = t["RANK"].unique()
-            for rank in ranks:
-                idxs = t.loc[t["RANK"] == rank].index.tolist()
-                if len(idxs) == 1:                                  # ignore ranks held by only one team
-                    continue
-                owners = t["owner"].iloc[idxs]
-                pcts = []
-                for owner in owners:
-                    h2h = get_head_to_head_records(self.cursor, year, owner, owners).sum(axis=0)[:-1]
-                    if h2h.sum() == 0.0:
-                        h2h_pct = 1.0
-                    else:
-                        h2h_pct = (h2h[0] + 0.5 * h2h[2]) / h2h.sum()
-                    pcts.append(h2h_pct)
-                sorted_idxs = [x for _, x in sorted(zip(pcts, idxs), reverse=True)]
-                sorted_rows = [t.iloc[i].copy() for i in sorted_idxs]
-                for idx, row in zip(idxs, sorted_rows):
-                    t.iloc[idx] = row
-
-            # determine playoff berths
-            if len(t) > 5:
-                if games_remaining == 0:
-                    t["clinch"].iloc[0] = "-x"
-                    t["clinch"].iloc[1] = "-x"
-                else:
-                    for i in range(2):
-                        if t["GB"].iloc[2] - t["GB"].iloc[i] > games_remaining:
-                            t["clinch"].iloc[i] = "-x"
-                        elif t["GB"].iloc[2] - t["GB"].iloc[i] == games_remaining:
-                            rank = t["RANK"].iloc[2]
-                            idxs = t.loc[t["RANK"] == rank].index.tolist()
-                            owners = t["owner"].iloc[idxs]
-                            h2h = get_head_to_head_records(self.cursor, year, t["owner"].iloc[i], owners).sum(axis=0)
-                            if h2h[1:].sum() == 0:
-                                t["clinch"].iloc[i] = "-x"
-                        else:
-                            continue
-
-                t["GB"] = t["GB"].apply(lambda x: "+%s" % abs(x) if x < 0 else x)
+            # handle divisional playoff berth
+            if games_remaining == 0:
+                t.at[0, "clinch"] = "-y"
             else:
-                # handle wildcard playoff berths for divisional standings
-                leader_diff = t["wins"].iloc[0] - wc["wins"].iloc[2]                # handle for leading team
+                if t["GB"].iloc[1] > games_remaining:
+                    t.at[0, "clinch"] = "-y"
+                elif t["GB"].iloc[1] == games_remaining:
+                    rank = t["RANK"].iloc[1]
+                    idxs = t.loc[t["RANK"] == rank].index.tolist()
+                    owners = t["owner"].iloc[idxs]
+                    h2h = get_head_to_head_records(self.cursor, year, t["owner"].iloc[0], owners).sum(axis=0)
+                    if h2h[1:].sum() == 0:
+                        t.at[0, "clinch"] = "-y"
+                else:
+                    pass
+
+            t["GB"].replace({0: "-"}, inplace=True)
+
+        # generate wildcard table
+        wc = table.loc[(table["owner"] != east["owner"].iloc[0]) & (table["owner"] != west["owner"].iloc[0])].copy()
+        wc.reset_index(drop=True, inplace=True)
+        wc["GB"] = wc["wins"].iloc[1] - wc["wins"].astype("int")
+        wc["GB"] = wc["GB"].apply(lambda x: "+%s" % abs(x) if x < 0 else x)
+        wc["RANK"] = len(wc) - rankdata(wc["win_pct"], method="max") + 1
+        wc["clinch"] = ""
+
+        # handle wildcard playoff berths for wildcard standings
+        if games_remaining == 0:
+            wc.loc[wc.index < 2, "clinch"] = "-x"
+        else:
+            for i in [0, 1]:
+                leader_diff = wc["wins"].iloc[i] - wc["wins"].iloc[2]
                 if leader_diff > games_remaining:
-                    t["clinch"].iloc[0] = "-x"
+                    wc.at[i, "clinch"] = "-x"
+                elif leader_diff == games_remaining:
+                    rank = wc["RANK"].iloc[2]
+                    idxs = wc.loc[wc["RANK"] == rank].index.tolist()
+                    owners = wc["owner"].iloc[idxs]
+                    h2h = get_head_to_head_records(self.cursor, year, wc["owner"].iloc[i], owners).sum(axis=0)
+                    if h2h[1:].sum() == 0:
+                        wc.at[i, "clinch"] = "-x"
+                else:
+                    pass
+
+        # handle wildcard playoff berths for division standings
+        for t in [east, west]:
+            # handle division leaders
+            if t.loc[0, "clinch"] == "-y":
+                pass
+            elif t.loc[0, "clinch"] == "":
+                leader_diff = t["wins"].iloc[0] - wc["wins"].iloc[2]
+                if leader_diff > games_remaining:
+                    t.at[0, "clinch"] = "-x"
                 elif leader_diff == games_remaining:
                     rank = wc["RANK"].iloc[2]
                     idxs = wc.loc[wc["RANK"] == rank].index.tolist()
                     owners = wc["owner"].iloc[idxs]
                     h2h = get_head_to_head_records(self.cursor, year, t["owner"].iloc[0], owners).sum(axis=0)
                     if h2h[1:].sum() == 0:
-                        t["clinch"].iloc[0] = "-x"
-                for owner in t["owner"][1:]:                                        # handle for non-leading teams
-                    if wc.loc[wc["owner"] == owner, "clinch"].iloc[0] == "-x":
-                        t.loc[t["owner"] == owner, "clinch"] = "-x"
-
-                # handle divisional playoff berth
-                if games_remaining == 0:
-                    t["clinch"].iloc[0] = "-y"
+                        t.at[0, "clinch"] = "-x"
                 else:
-                    if t["GB"].iloc[1] > games_remaining:
-                        t["clinch"].iloc[0] = "-y"
-                    elif t["GB"].iloc[1] == games_remaining:
-                        rank = t["RANK"].iloc[1]
-                        idxs = t.loc[t["RANK"] == rank].index.tolist()
-                        owners = t["owner"].iloc[idxs]
-                        h2h = get_head_to_head_records(self.cursor, year, t["owner"].iloc[0], owners).sum(axis=0)
-                        if h2h[1:].sum() == 0:
-                            t["clinch"].iloc[0] = "-y"
-                    else:
-                        continue
-            t["GB"].replace({0: "-"}, inplace=True)
+                    pass
+
+            # handle everyone else
+            for i in range(1, len(t)):
+                if wc.loc[wc["owner"] == t.at[i, "owner"], "clinch"].iloc[0] == "-x":
+                    t.at[i, "clinch"] = "-x"
+                else:
+                    pass
 
         layout = QVBoxLayout()
 
@@ -313,6 +306,31 @@ class LeagueTable(QWidget):
                 table_layout.addWidget(line, 3, j)
 
         return table_layout
+
+    def h2h_reorder(self, t, year):
+        ranks = t["RANK"].unique()
+        for rank in ranks:
+            idxs = t.loc[t["RANK"] == rank].index.tolist()
+            if len(idxs) == 1:                              # ignore ranks held by only one team
+                continue
+            owners = t.loc[idxs, "owner"].tolist()
+            buckets = [[], [], []]                          # only won, mixed/missing results, only lost
+            for i, owner in enumerate(owners):
+                h2h = get_head_to_head_records(self.cursor, year, owner, owners)
+                pair = (idxs[i], t.loc[idxs[i], "pts_for"])
+                if np.any(h2h[:, 0] > 0) and np.all(h2h[:, 1] == 0):
+                    buckets[0].append(pair)
+                elif np.all(h2h[:, 0] == 0) and np.any(h2h[:, 1] > 0):
+                    buckets[2].append(pair)
+                else:
+                    buckets[1].append(pair)
+            for i in range(len(buckets)):
+                buckets[i] = sorted(buckets[i], key=lambda x: x[1], reverse=True)
+            sorted_idxs = [x[0] for xs in buckets for x in xs]
+            sorted_rows = [t.iloc[i].copy() for i in sorted_idxs]
+            for idx, row in zip(idxs, sorted_rows):
+                t.iloc[idx] = row
+        return t
 
     def change_years(self, year):
         layout = self.LeagueTableLayout(year)
