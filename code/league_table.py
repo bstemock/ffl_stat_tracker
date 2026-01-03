@@ -1,6 +1,5 @@
 # TO DO
-# 1: add column for point projection differential(s)
-# 2: refresh button
+# 1: refresh button
 
 import os
 import sys
@@ -10,7 +9,7 @@ from mysql import connector
 from scipy.stats import rankdata
 
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtWidgets import (
     QComboBox,
     QPushButton,
@@ -66,20 +65,22 @@ class LeagueTable(QWidget):
         self.years_list = years_list
 
         self.table_columns = ["team_name", "owner", "clinch", "W-L-T", "win_pct", "GB",
-                              "pts_for", "pts_against", "pts_diff",
+                              "pts_for", "pts_against", "pts_diff", "proj_diff",
                               "HOME", "AWAY", "DIV", "NON-DIV", "UPSET"]
         self.column_titles = ["", "", "", "W-L-T", "PCT", "GB",                 # team_name, (owner), playoff berth
-                              "PF", "PA", "DIFF",
+                              "PF", "PA", "DIFF", "PROJ-DIFF",
                               "HOME", "AWAY", "DIV", "NON-DIV", "UPSET"]
         self.column_descriptions = ["", "", "", "Wins-Losses-Ties", "Winning Percentage", "Games Back",
                                     "Points For", "Points Against", "Point Differential (Points For - Points Against)",
+                                    "Projection Differential (Points For - ESPN Projected Points For)",
                                     "Home Record", "Away Record", "Divisional Record", "Non-Divisional Record",
                                     "Upset Record (an upset is defined as a\ngame where the result " +
                                     "contradicts the\nresult predicted by ESPN's projections)"]
 
         self.setWindowTitle("League Table")
-        self.resize(990, 951)
-        self.setMinimumSize(990, 951)
+        self.minsize = QSize(1060, 951)
+        self.resize(self.minsize)
+        self.setMinimumSize(self.minsize)
 
         layout = self.LeagueTableLayout(current_year)
 
@@ -256,6 +257,8 @@ class LeagueTable(QWidget):
                 label.setFixedSize(20, 20)
             elif t == 5:
                 label.setFixedSize(35, 20)
+            elif t == 9:
+                label.setFixedSize(70, 20)
             else:
                 label.setFixedSize(65, 20)
             if t > 2:
@@ -273,6 +276,8 @@ class LeagueTable(QWidget):
                     label.setFixedSize(20, 35)
                 elif j == 5:
                     label.setFixedSize(35, 35)
+                elif j == 9:
+                    label.setFixedSize(70, 35)
                 else:
                     label.setFixedSize(65, 35)
                 if j == 1:
@@ -280,7 +285,7 @@ class LeagueTable(QWidget):
                     label.setFont(sidenoteFont)
                 if j < 3:
                     label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-                elif 3 < j < 9:
+                elif 3 < j < 10:
                     label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 else:
                     label.setAlignment(Qt.AlignCenter)
@@ -290,7 +295,7 @@ class LeagueTable(QWidget):
                     label.setStyleSheet(label.styleSheet() + " font-weight: bold;")
                 if j == 0:
                     label.setStyleSheet(label.styleSheet() + " padding-left: 2px;")
-                elif 3 < j < 9:
+                elif 3 < j < 10:
                     label.setStyleSheet(label.styleSheet() + " padding-right: 5px;")
                 if i > 1 and len(table) > 5:
                     table_layout.addWidget(label, i + 2, j)
@@ -344,5 +349,5 @@ class LeagueTable(QWidget):
         return
 
     def closeEvent(self, event):
-        self.resize(990, 951)
+        self.resize(self.minsize)
         return

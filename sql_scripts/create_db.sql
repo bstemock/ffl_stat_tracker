@@ -316,6 +316,11 @@ begin
                when t.owner = g.home_owner and g.week < 16 then g.home_score - g.away_score
                else 0
                end) as pts_diff,
+		   sum(case
+		       when t.owner = g.away_owner and g.week < 16 then g.away_score - g.away_proj
+               when t.owner = g.home_owner and g.week < 16 then g.home_score - g.home_proj
+               else 0
+               end) as proj_diff,
 	       round(avg(case
 				     when t.owner = g.away_owner and g.week < 16 then g.away_score
 				     when t.owner = g.home_owner and g.week < 16 then g.home_score
