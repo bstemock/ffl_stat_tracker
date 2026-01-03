@@ -282,23 +282,23 @@ begin
                else 0
                end) as upset_losses,
 	       sum(case
-		       when t.owner = g.away_owner and winner = "Away" and g.week > 14 then 1
-               when t.owner = g.home_owner and winner = "Home" and g.week > 14 then 1
+		       when t.owner = g.away_owner and winner = "Away" and g.week > 15 then 1
+               when t.owner = g.home_owner and winner = "Home" and g.week > 15 then 1
                else 0
                end) as playoff_wins,
 	       sum(case
-               when t.owner = g.away_owner and winner = "Home" and g.week > 14 then 1
-               when t.owner = g.home_owner and winner = "Away" and g.week > 14 then 1
+               when t.owner = g.away_owner and winner = "Home" and g.week > 15 then 1
+               when t.owner = g.home_owner and winner = "Away" and g.week > 15 then 1
                else 0
                end) as playoff_losses,
 	       sum(case
-		       when t.owner = g.away_owner and winner = "Away" and g.week = 16 then 1
-               when t.owner = g.home_owner and winner = "Home" and g.week = 16 then 1
+		       when t.owner = g.away_owner and winner = "Away" and g.week = 17 then 1
+               when t.owner = g.home_owner and winner = "Home" and g.week = 17 then 1
                else 0
                end) as sb_wins,
 	       sum(case
-		       when t.owner = g.away_owner and winner = "Home" and g.week = 16 then 1
-               when t.owner = g.home_owner and winner = "Away" and g.week = 16 then 1
+		       when t.owner = g.away_owner and winner = "Home" and g.week = 17 then 1
+               when t.owner = g.home_owner and winner = "Away" and g.week = 17 then 1
                else 0
                end) as sb_losses,
 	       sum(case
@@ -334,23 +334,23 @@ begin
 				     when t.owner = g.home_owner and g.week < 16 then g.home_score - g.away_score
 				     end), 2) as avg_pts_diff,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 15 then 1
-               when t.owner = g.home_owner and g.week = 15 then 1
+		       when t.owner = g.away_owner and g.week = 16 then 1
+               when t.owner = g.home_owner and g.week = 16 then 1
                else 0
                end) as playoff_app,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 15 and g.away_seed > 2 then 1
-               when t.owner = g.home_owner and g.week = 15 and g.home_seed > 2 then 1
+		       when t.owner = g.away_owner and g.week = 16 and g.away_seed > 2 then 1
+               when t.owner = g.home_owner and g.week = 16 and g.home_seed > 2 then 1
                else 0
                end) as wc_berths,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 15 and g.away_seed < 3 then 1
-               when t.owner = g.home_owner and g.week = 15 and g.home_seed < 3 then 1
+		       when t.owner = g.away_owner and g.week = 16 and g.away_seed < 3 then 1
+               when t.owner = g.home_owner and g.week = 16 and g.home_seed < 3 then 1
                else 0
                end) as div_titles,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 16 then 1
-               when t.owner = g.home_owner and g.week = 16 then 1
+		       when t.owner = g.away_owner and g.week = 17 then 1
+               when t.owner = g.home_owner and g.week = 17 then 1
                else 0
                end) as sb_app
     from teams t
@@ -483,23 +483,23 @@ begin
                else 0
                end) as upset_losses,
 	       sum(case
-		       when t.owner = g.away_owner and winner = "Away" and g.week > 14 then 1
-               when t.owner = g.home_owner and winner = "Home" and g.week > 14 then 1
+		       when t.owner = g.away_owner and winner = "Away" and g.week > 15 then 1
+               when t.owner = g.home_owner and winner = "Home" and g.week > 15 then 1
                else 0
                end) as playoff_wins,
 	       sum(case
-               when t.owner = g.away_owner and winner = "Home" and g.week > 14 then 1
-               when t.owner = g.home_owner and winner = "Away" and g.week > 14 then 1
+               when t.owner = g.away_owner and winner = "Home" and g.week > 15 then 1
+               when t.owner = g.home_owner and winner = "Away" and g.week > 15 then 1
                else 0
                end) as playoff_losses,
 	       sum(case
-		       when t.owner = g.away_owner and winner = "Away" and g.week = 16 then 1
-               when t.owner = g.home_owner and winner = "Home" and g.week = 16 then 1
+		       when t.owner = g.away_owner and winner = "Away" and g.week = 17 then 1
+               when t.owner = g.home_owner and winner = "Home" and g.week = 17 then 1
                else 0
                end) as sb_wins,
 	       sum(case
-		       when t.owner = g.away_owner and winner = "Home" and g.week = 16 then 1
-               when t.owner = g.home_owner and winner = "Away" and g.week = 16 then 1
+		       when t.owner = g.away_owner and winner = "Home" and g.week = 17 then 1
+               when t.owner = g.home_owner and winner = "Away" and g.week = 17 then 1
                else 0
                end) as sb_losses,
 	       sum(case
@@ -530,23 +530,23 @@ begin
 				     when t.owner = g.home_owner and g.week < 16 then g.home_score - g.away_score
 				     end), 2) as avg_pts_diff,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 15 then 1
-               when t.owner = g.home_owner and g.week = 15 then 1
+		       when t.owner = g.away_owner and g.week = 16 then 1
+               when t.owner = g.home_owner and g.week = 16 then 1
                else 0
                end) as playoff_app,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 15 and g.away_seed > 2 then 1
-               when t.owner = g.home_owner and g.week = 15 and g.home_seed > 2 then 1
+		       when t.owner = g.away_owner and g.week = 16 and g.away_seed > 2 then 1
+               when t.owner = g.home_owner and g.week = 16 and g.home_seed > 2 then 1
                else 0
                end) as wc_berths,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 15 and g.away_seed < 3 then 1
-               when t.owner = g.home_owner and g.week = 15 and g.home_seed < 3 then 1
+		       when t.owner = g.away_owner and g.week = 16 and g.away_seed < 3 then 1
+               when t.owner = g.home_owner and g.week = 16 and g.home_seed < 3 then 1
                else 0
                end) as div_titles,
 	       sum(case
-		       when t.owner = g.away_owner and g.week = 16 then 1
-               when t.owner = g.home_owner and g.week = 16 then 1
+		       when t.owner = g.away_owner and g.week = 17 then 1
+               when t.owner = g.home_owner and g.week = 17 then 1
                else 0
                end) as sb_app
     from teams t
